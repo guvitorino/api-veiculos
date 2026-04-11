@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: api-veiculos
+  datasource:
+    url: jdbc:postgresql://localhost:5432/veiculosdb
+    username: postgres
+    password: postgres
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+springdoc:
+  swagger-ui:
+    path: /docs
