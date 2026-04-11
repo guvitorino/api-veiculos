@@ -1,4 +1,4 @@
-package com.vitorino.api_veiculos;
+package com.vitorino.apiveiculos;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
