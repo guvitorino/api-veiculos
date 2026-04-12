@@ -1,4 +1,4 @@
-package com.vitorino.api_veiculos;
+package com.vitorino.apiveiculos;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
