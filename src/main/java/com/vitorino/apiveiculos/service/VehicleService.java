@@ -1,5 +1,6 @@
 package com.vitorino.apiveiculos.service;
 
+import com.vitorino.apiveiculos.dto.VehiclePatchRequestDTO;
 import com.vitorino.apiveiculos.dto.VehicleRequestDTO;
 import com.vitorino.apiveiculos.dto.VehicleResponsetDTO;
 import com.vitorino.apiveiculos.exception.LicensePlateAlreadyExistsException;
@@ -52,6 +53,42 @@ public class VehicleService {
 
         BigDecimal priceInUsd = currencyService.convertBrlToUsd(dto.preco());
         vehicle.setPrice(priceInUsd);
+
+        Vehicle updated = repository.save(vehicle);
+        return mapper.toResponseDTO(updated);
+    }
+
+    public VehicleResponsetDTO patch(UUID id, VehiclePatchRequestDTO dto) {
+        Vehicle vehicle = repository.findById(id)
+                .orElseThrow(() -> new VehicleNotFoundException(id));
+
+        if (dto.placa() != null) {
+            if (repository.existsByLicensePlateAndIdNot(dto.placa(), id)) {
+                throw new LicensePlateAlreadyExistsException(dto.placa());
+            }
+            vehicle.setLicensePlate(dto.placa());
+        }
+
+        if (dto.marca() != null) {
+            vehicle.setBrand(dto.marca());
+        }
+
+        if (dto.modelo() != null) {
+            vehicle.setModel(dto.modelo());
+        }
+
+        if (dto.ano() != null) {
+            vehicle.setVehicleYear(dto.ano());
+        }
+
+        if (dto.cor() != null) {
+            vehicle.setColor(dto.cor());
+        }
+
+        if (dto.preco() != null) {
+            BigDecimal priceInUsd = currencyService.convertBrlToUsd(dto.preco());
+            vehicle.setPrice(priceInUsd);
+        }
 
         Vehicle updated = repository.save(vehicle);
         return mapper.toResponseDTO(updated);

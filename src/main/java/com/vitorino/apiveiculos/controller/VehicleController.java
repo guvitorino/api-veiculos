@@ -1,5 +1,6 @@
 package com.vitorino.apiveiculos.controller;
 
+import com.vitorino.apiveiculos.dto.VehiclePatchRequestDTO;
 import com.vitorino.apiveiculos.dto.VehicleRequestDTO;
 import com.vitorino.apiveiculos.dto.VehicleResponsetDTO;
 import com.vitorino.apiveiculos.exception.ErrorResponse;
@@ -66,5 +67,13 @@ public class VehicleController {
             @Valid @RequestBody VehicleRequestDTO dto
     ) {
         return ResponseEntity.ok(service.update(id, dto));
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<VehicleResponsetDTO> patch(
+            @PathVariable UUID id,
+            @RequestBody VehiclePatchRequestDTO dto
+    ) {
+        return ResponseEntity.ok(service.patch(id, dto));
     }
 }
