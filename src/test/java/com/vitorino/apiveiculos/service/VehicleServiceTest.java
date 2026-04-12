@@ -560,4 +560,48 @@ class VehicleServiceTest {
             assertEquals(new BigDecimal("7000.00"), savedVehicle.getPrice());
         }
     }
+
+    @Nested
+    @DisplayName("delete()")
+    class Delete {
+
+        @Test
+        @DisplayName("Deve realizar soft delete com sucesso")
+        void shouldSoftDeleteVehicleSuccessfully() {
+            UUID id = UUID.randomUUID();
+
+            Vehicle vehicle = new Vehicle();
+            vehicle.setId(id);
+            vehicle.setLicensePlate("ABC1234");
+            vehicle.setBrand("Volkswagen");
+            vehicle.setModel("Fox");
+            vehicle.setVehicleYear(2008);
+            vehicle.setColor("Prata");
+            vehicle.setPrice(new BigDecimal("5000.00"));
+            vehicle.setDeleted(false);
+
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.of(vehicle));
+            when(repository.save(vehicle)).thenReturn(vehicle);
+
+            service.delete(id);
+
+            assertTrue(vehicle.getDeleted());
+
+            verify(repository).findByIdAndDeletedFalse(id);
+            verify(repository).save(vehicle);
+        }
+
+        @Test
+        @DisplayName("Deve lançar exceção quando veículo não for encontrado")
+        void shouldThrowExceptionWhenVehicleIsNotFound() {
+            UUID id = UUID.randomUUID();
+
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.empty());
+
+            assertThrows(VehicleNotFoundException.class, () -> service.delete(id));
+
+            verify(repository).findByIdAndDeletedFalse(id);
+            verify(repository, never()).save(any());
+        }
+    }
 }

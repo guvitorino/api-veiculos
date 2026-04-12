@@ -9,6 +9,7 @@ import com.vitorino.apiveiculos.mapper.VehicleMapper;
 import com.vitorino.apiveiculos.model.Vehicle;
 import com.vitorino.apiveiculos.repository.VehicleRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -92,5 +93,14 @@ public class VehicleService {
 
         Vehicle updated = repository.save(vehicle);
         return mapper.toResponseDTO(updated);
+    }
+
+    @Transactional
+    public void delete(UUID id) {
+        Vehicle vehicle = repository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new VehicleNotFoundException(id));
+
+        vehicle.setDeleted(true);
+        repository.save(vehicle);
     }
 }

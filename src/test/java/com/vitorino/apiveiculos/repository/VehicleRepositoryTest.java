@@ -116,4 +116,59 @@ class VehicleRepositoryTest {
             assertFalse(exists);
         }
     }
+
+    @Nested
+    @DisplayName("findByIdAndDeletedFalse()")
+    class FindByIdAndDeletedFalse {
+
+        @Test
+        @DisplayName("Deve retornar o veículo quando não estiver deletado")
+        void shouldReturnVehicleWhenNotDeleted() {
+            Vehicle vehicle = new Vehicle();
+            vehicle.setLicensePlate("ABC1234");
+            vehicle.setBrand("Toyota");
+            vehicle.setModel("Corolla");
+            vehicle.setVehicleYear(2020);
+            vehicle.setColor("Branco");
+            vehicle.setPrice(new BigDecimal("80000.00"));
+            vehicle.setDeleted(false);
+
+            Vehicle saved = repository.save(vehicle);
+
+            var result = repository.findByIdAndDeletedFalse(saved.getId());
+
+            assertTrue(result.isPresent());
+            assertEquals(saved.getId(), result.get().getId());
+            assertFalse(result.get().getDeleted());
+        }
+
+        @Test
+        @DisplayName("Deve retornar vazio quando o veículo estiver deletado")
+        void shouldReturnEmptyWhenVehicleIsDeleted() {
+            Vehicle vehicle = new Vehicle();
+            vehicle.setLicensePlate("DEF5678");
+            vehicle.setBrand("Honda");
+            vehicle.setModel("Civic");
+            vehicle.setVehicleYear(2019);
+            vehicle.setColor("Preto");
+            vehicle.setPrice(new BigDecimal("75000.00"));
+            vehicle.setDeleted(true);
+
+            Vehicle saved = repository.save(vehicle);
+
+            var result = repository.findByIdAndDeletedFalse(saved.getId());
+
+            assertTrue(result.isEmpty());
+        }
+
+        @Test
+        @DisplayName("Deve retornar vazio quando o veículo não existe")
+        void shouldReturnEmptyWhenVehicleDoesNotExist() {
+            UUID randomId = UUID.randomUUID();
+
+            var result = repository.findByIdAndDeletedFalse(randomId);
+
+            assertTrue(result.isEmpty());
+        }
+    }
 }
