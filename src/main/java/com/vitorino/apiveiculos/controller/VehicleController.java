@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/veiculos")
@@ -57,5 +58,13 @@ public class VehicleController {
             @Valid @RequestBody VehicleRequestDTO dto
     ) {
         return ResponseEntity.status(HttpStatus.CREATED).body(this.service.save(dto));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<VehicleResponsetDTO> put(
+            @PathVariable UUID id,
+            @Valid @RequestBody VehicleRequestDTO dto
+    ) {
+        return ResponseEntity.ok(service.update(id, dto));
     }
 }

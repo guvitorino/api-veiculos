@@ -3,12 +3,14 @@ package com.vitorino.apiveiculos.service;
 import com.vitorino.apiveiculos.dto.VehicleRequestDTO;
 import com.vitorino.apiveiculos.dto.VehicleResponsetDTO;
 import com.vitorino.apiveiculos.exception.LicensePlateAlreadyExistsException;
+import com.vitorino.apiveiculos.exception.VehicleNotFoundException;
 import com.vitorino.apiveiculos.mapper.VehicleMapper;
 import com.vitorino.apiveiculos.model.Vehicle;
 import com.vitorino.apiveiculos.repository.VehicleRepository;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Service
 public class VehicleService {
@@ -32,5 +34,26 @@ public class VehicleService {
         entity.setPrice(priceInUsd);
         Vehicle saved = repository.save(entity);
         return mapper.toResponseDTO(saved);
+    }
+
+    public VehicleResponsetDTO update(UUID id, VehicleRequestDTO dto) {
+        Vehicle vehicle = repository.findById(id)
+                .orElseThrow(() -> new VehicleNotFoundException(id));
+
+        if (repository.existsByLicensePlateAndIdNot(dto.placa(), id)) {
+            throw new LicensePlateAlreadyExistsException(dto.placa());
+        }
+
+        vehicle.setLicensePlate(dto.placa());
+        vehicle.setBrand(dto.marca());
+        vehicle.setModel(dto.modelo());
+        vehicle.setVehicleYear(dto.ano());
+        vehicle.setColor(dto.cor());
+
+        BigDecimal priceInUsd = currencyService.convertBrlToUsd(dto.preco());
+        vehicle.setPrice(priceInUsd);
+
+        Vehicle updated = repository.save(vehicle);
+        return mapper.toResponseDTO(updated);
     }
 }
