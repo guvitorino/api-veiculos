@@ -103,4 +103,11 @@ public class VehicleService {
         vehicle.setDeleted(true);
         repository.save(vehicle);
     }
+
+    public VehicleResponsetDTO findById(UUID id) {
+        Vehicle vehicle = repository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new VehicleNotFoundException(id));
+
+        return mapper.toResponseDTO(vehicle);
+    }
 }

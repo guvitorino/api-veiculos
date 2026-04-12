@@ -604,4 +604,53 @@ class VehicleServiceTest {
             verify(repository, never()).save(any());
         }
     }
+
+    @Nested
+    @DisplayName("findById()")
+    class FindById {
+
+        @Test
+        @DisplayName("Deve retornar veículo quando encontrado")
+        void shouldReturnVehicleWhenFound() {
+            UUID id = UUID.randomUUID();
+
+            Vehicle vehicle = new Vehicle();
+            vehicle.setId(id);
+            vehicle.setLicensePlate("ABC1234");
+
+            VehicleResponsetDTO responseDTO = new VehicleResponsetDTO(
+                    id,
+                    "ABC1234",
+                    "Volkswagen",
+                    "Fox",
+                    2008,
+                    "Prata",
+                    new BigDecimal("5000.00")
+            );
+
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.of(vehicle));
+            when(mapper.toResponseDTO(vehicle)).thenReturn(responseDTO);
+
+            VehicleResponsetDTO result = service.findById(id);
+
+            assertNotNull(result);
+            assertEquals(id, result.id());
+
+            verify(repository).findByIdAndDeletedFalse(id);
+            verify(mapper).toResponseDTO(vehicle);
+        }
+
+        @Test
+        @DisplayName("Deve lançar exceção quando veículo não for encontrado")
+        void shouldThrowExceptionWhenVehicleNotFound() {
+            UUID id = UUID.randomUUID();
+
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.empty());
+
+            assertThrows(VehicleNotFoundException.class, () -> service.findById(id));
+
+            verify(repository).findByIdAndDeletedFalse(id);
+            verify(mapper, never()).toResponseDTO(any());
+        }
+    }
 }

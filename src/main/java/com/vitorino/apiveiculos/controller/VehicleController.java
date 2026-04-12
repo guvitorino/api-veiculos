@@ -3,8 +3,6 @@ package com.vitorino.apiveiculos.controller;
 import com.vitorino.apiveiculos.dto.VehiclePatchRequestDTO;
 import com.vitorino.apiveiculos.dto.VehicleRequestDTO;
 import com.vitorino.apiveiculos.dto.VehicleResponsetDTO;
-import com.vitorino.apiveiculos.exception.ErrorResponse;
-import com.vitorino.apiveiculos.exception.LicensePlateAlreadyExistsException;
 import com.vitorino.apiveiculos.service.VehicleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -16,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @RestController
@@ -81,5 +78,11 @@ public class VehicleController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<VehicleResponsetDTO> findById(@PathVariable UUID id) {
+        VehicleResponsetDTO response = service.findById(id);
+        return ResponseEntity.ok(response);
     }
 }
