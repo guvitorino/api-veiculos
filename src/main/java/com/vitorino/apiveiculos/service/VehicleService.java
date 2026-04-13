@@ -180,4 +180,8 @@ public class VehicleService {
                 page.hasPrevious()
         );
     }
+
+    public List<VehicleByBrandReportDTO> getVehicleReportByBrand() {
+        return repository.countVehiclesGroupedByBrand();
+    }
 }

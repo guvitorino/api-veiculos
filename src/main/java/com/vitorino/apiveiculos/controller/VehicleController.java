@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -96,5 +97,10 @@ public class VehicleController {
             Pageable pageable
     ) {
         return ResponseEntity.ok(service.findAll(filters, pageable));
+    }
+
+    @GetMapping("/relatorios/por-marca")
+    public ResponseEntity<List<VehicleByBrandReportDTO>> getReportByBrand() {
+        return ResponseEntity.ok(service.getVehicleReportByBrand());
     }
 }

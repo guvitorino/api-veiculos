@@ -827,4 +827,44 @@ class VehicleServiceTest {
             verify(mapper, never()).toResponseDTO(any());
         }
     }
+
+    @Nested
+    @DisplayName("getVehicleReportByBrand()")
+    class GetVehicleReportByBrand {
+
+        @Test
+        @DisplayName("Deve retornar relatório agrupado por marca")
+        void shouldReturnVehicleReportGroupedByBrand() {
+            List<VehicleByBrandReportDTO> report = List.of(
+                    new VehicleByBrandReportDTO("volkswagen", 2L),
+                    new VehicleByBrandReportDTO("toyota", 1L)
+            );
+
+            when(repository.countVehiclesGroupedByBrand()).thenReturn(report);
+
+            List<VehicleByBrandReportDTO> result = service.getVehicleReportByBrand();
+
+            assertNotNull(result);
+            assertEquals(2, result.size());
+            assertEquals("volkswagen", result.get(0).marca());
+            assertEquals(2L, result.get(0).quantidade());
+            assertEquals("toyota", result.get(1).marca());
+            assertEquals(1L, result.get(1).quantidade());
+
+            verify(repository).countVehiclesGroupedByBrand();
+        }
+
+        @Test
+        @DisplayName("Deve retornar lista vazia quando não houver veículos")
+        void shouldReturnEmptyListWhenThereAreNoVehicles() {
+            when(repository.countVehiclesGroupedByBrand()).thenReturn(List.of());
+
+            List<VehicleByBrandReportDTO> result = service.getVehicleReportByBrand();
+
+            assertNotNull(result);
+            assertTrue(result.isEmpty());
+
+            verify(repository).countVehiclesGroupedByBrand();
+        }
+    }
 }
