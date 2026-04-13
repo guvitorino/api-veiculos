@@ -1,8 +1,7 @@
 package com.vitorino.apiveiculos.service;
 
-import com.vitorino.apiveiculos.dto.VehiclePatchRequestDTO;
-import com.vitorino.apiveiculos.dto.VehicleRequestDTO;
-import com.vitorino.apiveiculos.dto.VehicleResponsetDTO;
+import com.vitorino.apiveiculos.dto.*;
+import com.vitorino.apiveiculos.exception.InvalidSortFieldException;
 import com.vitorino.apiveiculos.exception.LicensePlateAlreadyExistsException;
 import com.vitorino.apiveiculos.exception.VehicleNotFoundException;
 import com.vitorino.apiveiculos.mapper.VehicleMapper;
@@ -16,8 +15,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -650,6 +652,178 @@ class VehicleServiceTest {
             assertThrows(VehicleNotFoundException.class, () -> service.findById(id));
 
             verify(repository).findByIdAndDeletedFalse(id);
+            verify(mapper, never()).toResponseDTO(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("findAll()")
+    class FindAll {
+
+        @Test
+        @DisplayName("Deve retornar página de veículos mapeada com sucesso")
+        void shouldReturnMappedVehiclePageSuccessfully() {
+            UUID id = UUID.randomUUID();
+
+            VehicleFilterDTO filters = new VehicleFilterDTO();
+            filters.setMarca("Toyota");
+            filters.setAno(2020);
+            filters.setCor("Preto");
+            filters.setMinPreco(new BigDecimal("10000.00"));
+            filters.setMaxPreco(new BigDecimal("30000.00"));
+
+            Pageable pageable = PageRequest.of(0, 10, Sort.by("marca").ascending());
+
+            Vehicle vehicle = new Vehicle();
+            vehicle.setId(id);
+            vehicle.setLicensePlate("ABC1234");
+            vehicle.setBrand("Toyota");
+            vehicle.setModel("Corolla");
+            vehicle.setVehicleYear(2020);
+            vehicle.setColor("Preto");
+            vehicle.setPrice(new BigDecimal("20000.00"));
+            vehicle.setDeleted(false);
+
+            VehicleResponsetDTO responseDTO = new VehicleResponsetDTO(
+                    id,
+                    "ABC1234",
+                    "Toyota",
+                    "Corolla",
+                    2020,
+                    "Preto",
+                    new BigDecimal("20000.00")
+            );
+
+            Page<Vehicle> vehiclePage = new PageImpl<>(List.of(vehicle), pageable, 1);
+
+            when(repository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(vehiclePage);
+            when(mapper.toResponseDTO(vehicle)).thenReturn(responseDTO);
+
+            ListPageResponseDTO<VehicleResponsetDTO> result = service.findAll(filters, pageable);
+
+            assertNotNull(result);
+            assertEquals(1, result.totalElements());
+            assertEquals(1, result.data().size());
+            assertEquals(0, result.page());
+            assertEquals(10, result.size());
+            assertEquals(1, result.totalPages());
+            assertFalse(result.hasNext());
+            assertFalse(result.hasPrevious());
+
+            VehicleResponsetDTO returnedVehicle = result.data().get(0);
+            assertEquals(id, returnedVehicle.id());
+            assertEquals("ABC1234", returnedVehicle.placa());
+            assertEquals("Toyota", returnedVehicle.marca());
+            assertEquals("Corolla", returnedVehicle.modelo());
+            assertEquals(2020, returnedVehicle.ano());
+            assertEquals("Preto", returnedVehicle.cor());
+            assertEquals(new BigDecimal("20000.00"), returnedVehicle.preco());
+
+            ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+            verify(repository).findAll(any(Specification.class), pageableCaptor.capture());
+            verify(mapper).toResponseDTO(vehicle);
+
+            Pageable mappedPageable = pageableCaptor.getValue();
+            assertEquals(0, mappedPageable.getPageNumber());
+            assertEquals(10, mappedPageable.getPageSize());
+            assertEquals(Sort.Direction.ASC, mappedPageable.getSort().getOrderFor("brand").getDirection());
+            assertNotNull(mappedPageable.getSort().getOrderFor("brand"));
+        }
+
+        @Test
+        @DisplayName("Deve retornar página vazia quando não houver veículos")
+        void shouldReturnEmptyPageWhenNoVehiclesAreFound() {
+            VehicleFilterDTO filters = new VehicleFilterDTO();
+            filters.setMarca("Toyota");
+            filters.setAno(2020);
+            filters.setCor("Preto");
+            filters.setMinPreco(new BigDecimal("10000.00"));
+            filters.setMaxPreco(new BigDecimal("30000.00"));
+
+            Pageable pageable = PageRequest.of(0, 10);
+
+            Page<Vehicle> emptyPage = new PageImpl<>(List.of(), pageable, 0);
+
+            when(repository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(emptyPage);
+
+            ListPageResponseDTO<VehicleResponsetDTO> result = service.findAll(filters, pageable);
+
+            assertNotNull(result);
+            assertTrue(result.data().isEmpty());
+            assertEquals(0, result.totalElements());
+            assertEquals(0, result.totalPages());
+            assertFalse(result.hasNext());
+            assertFalse(result.hasPrevious());
+
+            ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+            verify(repository).findAll(any(Specification.class), pageableCaptor.capture());
+            verify(mapper, never()).toResponseDTO(any());
+
+            Pageable mappedPageable = pageableCaptor.getValue();
+            assertEquals(0, mappedPageable.getPageNumber());
+            assertEquals(10, mappedPageable.getPageSize());
+        }
+
+        @Test
+        @DisplayName("Deve retornar veículos mesmo quando filtros forem nulos")
+        void shouldReturnVehiclesWhenFiltersAreNull() {
+            UUID id = UUID.randomUUID();
+
+            VehicleFilterDTO filters = new VehicleFilterDTO();
+
+            Pageable pageable = PageRequest.of(0, 10);
+
+            Vehicle vehicle = new Vehicle();
+            vehicle.setId(id);
+            vehicle.setLicensePlate("XYZ9999");
+            vehicle.setBrand("Honda");
+            vehicle.setModel("Civic");
+            vehicle.setVehicleYear(2021);
+            vehicle.setColor("Branco");
+            vehicle.setPrice(new BigDecimal("25000.00"));
+            vehicle.setDeleted(false);
+
+            VehicleResponsetDTO responseDTO = new VehicleResponsetDTO(
+                    id,
+                    "XYZ9999",
+                    "Honda",
+                    "Civic",
+                    2021,
+                    "Branco",
+                    new BigDecimal("25000.00")
+            );
+
+            Page<Vehicle> vehiclePage = new PageImpl<>(List.of(vehicle), pageable, 1);
+
+            when(repository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(vehiclePage);
+            when(mapper.toResponseDTO(vehicle)).thenReturn(responseDTO);
+
+            ListPageResponseDTO<VehicleResponsetDTO> result = service.findAll(filters, pageable);
+
+            assertNotNull(result);
+            assertEquals(1, result.totalElements());
+            assertEquals(1, result.data().size());
+            assertEquals("Honda", result.data().get(0).marca());
+
+            ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+            verify(repository).findAll(any(Specification.class), pageableCaptor.capture());
+            verify(mapper).toResponseDTO(vehicle);
+
+            Pageable mappedPageable = pageableCaptor.getValue();
+            assertEquals(0, mappedPageable.getPageNumber());
+            assertEquals(10, mappedPageable.getPageSize());
+        }
+
+        @Test
+        @DisplayName("Deve lançar exceção quando campo de ordenação for inválido")
+        void shouldThrowExceptionWhenSortFieldIsInvalid() {
+            VehicleFilterDTO filters = new VehicleFilterDTO();
+
+            Pageable pageable = PageRequest.of(0, 10, Sort.by("invalido").ascending());
+
+            assertThrows(InvalidSortFieldException.class, () -> service.findAll(filters, pageable));
+
+            verify(repository, never()).findAll(any(Specification.class), any(Pageable.class));
             verify(mapper, never()).toResponseDTO(any());
         }
     }

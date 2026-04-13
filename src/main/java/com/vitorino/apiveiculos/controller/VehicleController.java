@@ -1,8 +1,6 @@
 package com.vitorino.apiveiculos.controller;
 
-import com.vitorino.apiveiculos.dto.VehiclePatchRequestDTO;
-import com.vitorino.apiveiculos.dto.VehicleRequestDTO;
-import com.vitorino.apiveiculos.dto.VehicleResponsetDTO;
+import com.vitorino.apiveiculos.dto.*;
 import com.vitorino.apiveiculos.service.VehicleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -10,6 +8,11 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -84,5 +87,14 @@ public class VehicleController {
     public ResponseEntity<VehicleResponsetDTO> findById(@PathVariable UUID id) {
         VehicleResponsetDTO response = service.findById(id);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping
+    public ResponseEntity<ListPageResponseDTO<VehicleResponsetDTO>> findAll(
+            @ParameterObject @ModelAttribute VehicleFilterDTO filters,
+            @ParameterObject @PageableDefault(page = 0, size = 10, sort = "marca", direction = Sort.Direction.ASC)
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(service.findAll(filters, pageable));
     }
 }

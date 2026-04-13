@@ -1,17 +1,25 @@
 package com.vitorino.apiveiculos.service;
 
-import com.vitorino.apiveiculos.dto.VehiclePatchRequestDTO;
-import com.vitorino.apiveiculos.dto.VehicleRequestDTO;
-import com.vitorino.apiveiculos.dto.VehicleResponsetDTO;
+import com.vitorino.apiveiculos.dto.*;
+import com.vitorino.apiveiculos.exception.InvalidSortFieldException;
 import com.vitorino.apiveiculos.exception.LicensePlateAlreadyExistsException;
 import com.vitorino.apiveiculos.exception.VehicleNotFoundException;
 import com.vitorino.apiveiculos.mapper.VehicleMapper;
 import com.vitorino.apiveiculos.model.Vehicle;
 import com.vitorino.apiveiculos.repository.VehicleRepository;
+import com.vitorino.apiveiculos.specification.VehicleSpecification;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -109,5 +117,67 @@ public class VehicleService {
                 .orElseThrow(() -> new VehicleNotFoundException(id));
 
         return mapper.toResponseDTO(vehicle);
+    }
+
+    private static final Map<String, String> SORT_MAPPING = Map.of(
+            "marca", "brand",
+            "ano", "vehicleYear",
+            "cor", "color",
+            "preco", "price"
+    );
+
+    private Pageable mapSortFields(Pageable pageable) {
+        List<Sort.Order> orders = pageable.getSort()
+                .stream()
+                .map(order -> {
+                    String mappedProperty = SORT_MAPPING.get(order.getProperty());
+
+                    if (mappedProperty == null) {
+                        throw new InvalidSortFieldException(order.getProperty());
+                    }
+
+                    return new Sort.Order(order.getDirection(), mappedProperty);
+                })
+                .toList();
+
+        Sort mappedSort = orders.isEmpty() ? Sort.unsorted() : Sort.by(orders);
+
+        return PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                mappedSort
+        );
+    }
+
+    public ListPageResponseDTO<VehicleResponsetDTO> findAll(
+            VehicleFilterDTO filters,
+            Pageable pageable
+    ) {
+        Pageable mappedPageable = mapSortFields(pageable);
+
+        Specification<Vehicle> specification = Specification
+                .where(VehicleSpecification.notDeleted())
+                .and(VehicleSpecification.hasBrand(filters.getMarca()))
+                .and(VehicleSpecification.hasYear(filters.getAno()))
+                .and(VehicleSpecification.hasColor(filters.getCor()))
+                .and(VehicleSpecification.priceGreaterThanOrEqualTo(filters.getMinPreco()))
+                .and(VehicleSpecification.priceLessThanOrEqualTo(filters.getMaxPreco()));
+
+        Page<Vehicle> page = repository.findAll(specification, mappedPageable);
+
+        List<VehicleResponsetDTO> data = page.getContent()
+                .stream()
+                .map(mapper::toResponseDTO)
+                .toList();
+
+        return new ListPageResponseDTO<>(
+                data,
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.hasNext(),
+                page.hasPrevious()
+        );
     }
 }
