@@ -3,6 +3,7 @@ package com.vitorino.apiveiculos.service;
 import com.vitorino.apiveiculos.dto.AwesomeApiResponseDTO;
 import com.vitorino.apiveiculos.dto.FrankfurterApiResponseDTO;
 import com.vitorino.apiveiculos.exception.ExternalServiceException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -13,15 +14,22 @@ import java.time.Duration;
 @Service
 public class ExchangeRateService {
     private final WebClient webClient;
+    private final String awesomeUrl;
+    private final String frankfurterUrl;
 
-    public ExchangeRateService(WebClient currencyWebClient) {
+    public ExchangeRateService(
+            WebClient currencyWebClient,
+            @Value("${external.exchange.awesome-url:https://economia.awesomeapi.com.br/json/last/USD-BRL}") String awesomeUrl,
+            @Value("${external.exchange.frankfurter-url:https://api.frankfurter.dev/v1/latest?from=USD&to=BRL}") String frankfurterUrl
+    ) {
         this.webClient = currencyWebClient;
+        this.awesomeUrl = awesomeUrl;
+        this.frankfurterUrl = frankfurterUrl;
     }
 
     private BigDecimal getDollarRateFromAwesomeApi() {
-        String AWESOME_URL = "https://economia.awesomeapi.com.br/json/last/USD-BRL";
         AwesomeApiResponseDTO response = webClient.get()
-                .uri(AWESOME_URL)
+                .uri(awesomeUrl)
                 .retrieve()
                 .bodyToMono(AwesomeApiResponseDTO.class)
                 .timeout(Duration.ofSeconds(5))
@@ -35,9 +43,8 @@ public class ExchangeRateService {
     }
 
     private BigDecimal getDollarRateFromFrankfurter() {
-        String FRANKFURTER_URL = "https://api.frankfurter.dev/v1/latest?from=USD&to=BRL";
         FrankfurterApiResponseDTO response = webClient.get()
-                .uri(FRANKFURTER_URL)
+                .uri(frankfurterUrl)
                 .retrieve()
                 .bodyToMono(FrankfurterApiResponseDTO.class)
                 .timeout(Duration.ofSeconds(5))

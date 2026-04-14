@@ -37,7 +37,11 @@ class ExchangeRateServiceTest {
 
     @BeforeEach
     void setUp() {
-        exchangeRateService = new ExchangeRateService(webClient);
+        exchangeRateService = new ExchangeRateService(
+                webClient,
+                "https://economia.awesomeapi.com.br/json/last/USD-BRL",
+                "https://api.frankfurter.dev/v1/latest?from=USD&to=BRL"
+        );
     }
 
     @Test
