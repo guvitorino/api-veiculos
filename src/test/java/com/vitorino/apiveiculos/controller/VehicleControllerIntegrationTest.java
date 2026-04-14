@@ -1,5 +1,7 @@
 package com.vitorino.apiveiculos.controller;
 
+import com.vitorino.apiveiculos.dto.LoginResponseDTO;
+import com.vitorino.apiveiculos.dto.VehicleResponsetDTO;
 import com.vitorino.apiveiculos.model.User;
 import com.vitorino.apiveiculos.model.UserRole;
 import com.vitorino.apiveiculos.model.Vehicle;
@@ -21,6 +23,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -95,8 +98,9 @@ class VehicleControllerIntegrationTest {
     @Test
     @DisplayName("Deve retornar 409 com payload padronizado quando a placa já estiver cadastrada")
     void shouldReturnConflictWhenLicensePlateAlreadyExists() throws Exception {
+        String licensePlate = "ABC1234";
         String token = bearerTokenFor(UserRole.ADMIN);
-        vehicleRepository.save(existingVehicle("ABC1234"));
+        vehicleRepository.save(existingVehicle(licensePlate));
 
         webTestClient.post()
                 .uri("/veiculos")
@@ -127,20 +131,96 @@ class VehicleControllerIntegrationTest {
                 .jsonPath("$.id").exists()
                 .jsonPath("$.placa").isEqualTo("ABC1234")
                 .jsonPath("$.marca").isEqualTo("Volkswagen")
-                .jsonPath("$.modelo").isEqualTo("Gol")
+                .jsonPath("$.modelo").isEqualTo("Fox")
+                .jsonPath("$.ano").isEqualTo(2020)
+                .jsonPath("$.cor").isEqualTo("Prata")
+                .jsonPath("$.preco").isEqualTo(5000.00);
+    }
+
+    @Test
+    @DisplayName("Deve executar fluxo ponta a ponta de obter token criar listar filtrar e detalhar veículo")
+    void shouldExecuteEndToEndFlowFromLoginToVehicleDetail() {
+        String password = "123456";
+        User admin = userRepository.save(User.builder()
+                .email("admin@example.com")
+                .passwordHash(passwordEncoder.encode(password))
+                .role(UserRole.ADMIN)
+                .build());
+
+        String token = loginAndGetAuthorizationHeader(admin.getEmail(), password);
+
+        VehicleResponsetDTO createdVehicle = webTestClient.post()
+                .uri("/veiculos")
+                .header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(validRequest())
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody(VehicleResponsetDTO.class)
+                .returnResult()
+                .getResponseBody();
+
+        String createdId = createdVehicle.id().toString();
+
+        webTestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/veiculos")
+                        .queryParam("marca", "Volkswagen")
+                        .queryParam("cor", "Prata")
+                        .queryParam("ano", 2020)
+                        .build())
+                .header("Authorization", token)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.length()").isEqualTo(1)
+                .jsonPath("$.data[0].id").isEqualTo(createdId)
+                .jsonPath("$.data[0].placa").isEqualTo("ABC1234")
+                .jsonPath("$.data[0].marca").isEqualTo("Volkswagen")
+                .jsonPath("$.totalElements").isEqualTo(1)
+                .jsonPath("$.page").isEqualTo(0);
+
+        webTestClient.get()
+                .uri("/veiculos/{id}", UUID.fromString(createdId))
+                .header("Authorization", token)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.id").isEqualTo(createdId)
+                .jsonPath("$.placa").isEqualTo("ABC1234")
+                .jsonPath("$.marca").isEqualTo("Volkswagen")
+                .jsonPath("$.modelo").isEqualTo("Fox")
                 .jsonPath("$.ano").isEqualTo(2020)
                 .jsonPath("$.cor").isEqualTo("Prata")
                 .jsonPath("$.preco").isEqualTo(5000.00);
     }
 
     private String bearerTokenFor(UserRole role) {
+        String password = "123456";
         User user = userRepository.save(User.builder()
                 .email(role.name().toLowerCase() + "@example.com")
-                .passwordHash(passwordEncoder.encode("123456"))
+                .passwordHash(passwordEncoder.encode(password))
                 .role(role)
                 .build());
 
         return "Bearer " + jwtService.generateToken(user);
+    }
+
+    private String loginAndGetAuthorizationHeader(String email, String password) {
+        LoginResponseDTO response = webTestClient.post()
+                .uri("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of(
+                        "email", email,
+                        "password", password
+                ))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(LoginResponseDTO.class)
+                .returnResult()
+                .getResponseBody();
+
+        return response.type() + " " + response.token();
     }
 
     private Vehicle existingVehicle(String licensePlate) {
