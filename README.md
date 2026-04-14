@@ -21,7 +21,7 @@ API REST desenvolvida em Java com Spring Boot para gerenciamento de veículos, c
 ## Funcionalidades implementadas
 - Veículos
 - Cadastro de veículos
-- istagem paginada
+- Listagem paginada
 - Busca por ID
 - Atualização completa
 - Atualização parcial

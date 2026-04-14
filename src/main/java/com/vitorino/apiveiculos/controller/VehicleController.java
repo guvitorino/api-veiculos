@@ -82,7 +82,7 @@ public class VehicleController {
     }
 
     @Operation(
-            summary = "Atualizer veículo",
+            summary = "Atualizar veículo",
             description = "Atualize um veículo no sistema",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Veículo atualizado com sucesso"),
@@ -114,7 +114,7 @@ public class VehicleController {
     }
 
     @Operation(
-            summary = "Atualizer parcialmente um veículo",
+            summary = "Atualizar parcialmente um veículo",
             description = "Atualiza parcialmente um veículo no sistema",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Veículo atualizado com sucesso"),
