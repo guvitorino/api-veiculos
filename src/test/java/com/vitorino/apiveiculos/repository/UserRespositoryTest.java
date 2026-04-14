@@ -1,5 +1,6 @@
 package com.vitorino.apiveiculos.repository;
 
+import com.vitorino.apiveiculos.config.FlywayConfig;
 import com.vitorino.apiveiculos.model.User;
 import com.vitorino.apiveiculos.model.UserRole;
 import org.junit.jupiter.api.DisplayName;
@@ -7,12 +8,18 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+@ActiveProfiles("test")
+@Import(FlywayConfig.class)
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class UserRepositoryTest {
 
     @Autowired
