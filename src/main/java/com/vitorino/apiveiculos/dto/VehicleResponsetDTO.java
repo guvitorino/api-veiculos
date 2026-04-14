@@ -2,6 +2,7 @@ package com.vitorino.apiveiculos.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -27,4 +28,4 @@ public record VehicleResponsetDTO(
 
         @Schema(description = "Preço do veículo em USD", example = "4990,82")
         BigDecimal preco
-) {}
+) implements Serializable {}

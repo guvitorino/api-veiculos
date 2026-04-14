@@ -1,5 +1,6 @@
 package com.vitorino.apiveiculos.dto;
 
+import java.io.Serializable;
 import java.util.List;
 
 public record ListPageResponseDTO<T>(
@@ -10,5 +11,5 @@ public record ListPageResponseDTO<T>(
         int totalPages,
         boolean hasNext,
         boolean hasPrevious
-) {
+) implements Serializable {
 }

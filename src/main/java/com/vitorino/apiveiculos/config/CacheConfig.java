@@ -7,6 +7,7 @@ import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericToStringSerializer;
+import org.springframework.data.redis.serializer.JdkSerializationRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -19,11 +20,13 @@ import java.util.Map;
 public class CacheConfig {
 
     private static final Duration DOLLAR_RATE_TTL = Duration.ofMinutes(10);
+    private static final Duration VEHICLE_CACHE_TTL = Duration.ofMinutes(10);
 
     @Bean
     public RedisCacheManager redisCacheManager(RedisConnectionFactory connectionFactory) {
         StringRedisSerializer keySerializer = new StringRedisSerializer();
         GenericToStringSerializer<BigDecimal> bigDecimalSerializer = new GenericToStringSerializer<>(BigDecimal.class);
+        JdkSerializationRedisSerializer jdkSerializer = new JdkSerializationRedisSerializer();
 
         RedisCacheConfiguration defaultConfiguration = RedisCacheConfiguration.defaultCacheConfig()
                 .disableCachingNullValues()
@@ -33,9 +36,18 @@ public class CacheConfig {
                 .entryTtl(DOLLAR_RATE_TTL)
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(bigDecimalSerializer));
 
+        RedisCacheConfiguration vehicleConfiguration = defaultConfiguration
+                .entryTtl(VEHICLE_CACHE_TTL)
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jdkSerializer));
+
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfiguration)
-                .withInitialCacheConfigurations(Map.of("dollarRate", dollarRateConfiguration))
+                .withInitialCacheConfigurations(Map.of(
+                        "dollarRate", dollarRateConfiguration,
+                        "vehicleById", vehicleConfiguration,
+                        "vehicleList", vehicleConfiguration,
+                        "vehicleReportByBrand", vehicleConfiguration
+                ))
                 .transactionAware()
                 .build();
     }

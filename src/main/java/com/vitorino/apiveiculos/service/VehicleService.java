@@ -9,6 +9,9 @@ import com.vitorino.apiveiculos.model.Vehicle;
 import com.vitorino.apiveiculos.repository.VehicleRepository;
 import com.vitorino.apiveiculos.specification.VehicleSpecification;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -34,6 +37,10 @@ public class VehicleService {
         this.currencyService = currencyService;
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "vehicleList", allEntries = true),
+            @CacheEvict(value = "vehicleReportByBrand", allEntries = true)
+    })
     public VehicleResponsetDTO save(VehicleRequestDTO dto) {
         Vehicle entity = mapper.toEntity(dto);
 
@@ -46,6 +53,11 @@ public class VehicleService {
         return mapper.toResponseDTO(saved);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "vehicleById", key = "#id"),
+            @CacheEvict(value = "vehicleList", allEntries = true),
+            @CacheEvict(value = "vehicleReportByBrand", allEntries = true)
+    })
     public VehicleResponsetDTO update(UUID id, VehicleRequestDTO dto) {
         Vehicle vehicle = repository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new VehicleNotFoundException(id));
@@ -67,6 +79,11 @@ public class VehicleService {
         return mapper.toResponseDTO(updated);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "vehicleById", key = "#id"),
+            @CacheEvict(value = "vehicleList", allEntries = true),
+            @CacheEvict(value = "vehicleReportByBrand", allEntries = true)
+    })
     public VehicleResponsetDTO patch(UUID id, VehiclePatchRequestDTO dto) {
         Vehicle vehicle = repository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new VehicleNotFoundException(id));
@@ -104,6 +121,11 @@ public class VehicleService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "vehicleById", key = "#id"),
+            @CacheEvict(value = "vehicleList", allEntries = true),
+            @CacheEvict(value = "vehicleReportByBrand", allEntries = true)
+    })
     public void delete(UUID id) {
         Vehicle vehicle = repository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new VehicleNotFoundException(id));
@@ -113,6 +135,7 @@ public class VehicleService {
         repository.save(vehicle);
     }
 
+    @Cacheable(value = "vehicleById", key = "#id")
     public VehicleResponsetDTO findById(UUID id) {
         Vehicle vehicle = repository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new VehicleNotFoundException(id));
@@ -150,6 +173,10 @@ public class VehicleService {
         );
     }
 
+    @Cacheable(
+            value = "vehicleList",
+            key = "T(java.lang.String).format('%s|%s|%s|%s|%s|%s|%s|%s', #filters.marca, #filters.ano, #filters.cor, #filters.minPreco, #filters.maxPreco, #pageable.pageNumber, #pageable.pageSize, #pageable.sort)"
+    )
     public ListPageResponseDTO<VehicleResponsetDTO> findAll(
             VehicleFilterDTO filters,
             Pageable pageable
@@ -182,6 +209,7 @@ public class VehicleService {
         );
     }
 
+    @Cacheable("vehicleReportByBrand")
     public List<VehicleByBrandReportDTO> getVehicleReportByBrand() {
         return repository.countVehiclesGroupedByBrand();
     }
