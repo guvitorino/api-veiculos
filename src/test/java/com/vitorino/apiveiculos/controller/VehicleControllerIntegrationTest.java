@@ -27,6 +27,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.reactive.server.WebTestClient.bindToServer;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -193,6 +194,39 @@ class VehicleControllerIntegrationTest {
                 .jsonPath("$.ano").isEqualTo(2020)
                 .jsonPath("$.cor").isEqualTo("Prata")
                 .jsonPath("$.preco").isEqualTo(5000.00);
+    }
+
+    @Test
+    @DisplayName("Deve permitir reutilizar placa apos soft delete")
+    void shouldAllowReusingLicensePlateAfterSoftDelete() {
+        String token = bearerTokenFor(UserRole.ADMIN);
+
+        VehicleResponsetDTO createdVehicle = webTestClient.post()
+                .uri("/veiculos")
+                .header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(validRequest())
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody(VehicleResponsetDTO.class)
+                .returnResult()
+                .getResponseBody();
+
+        webTestClient.delete()
+                .uri("/veiculos/{id}", createdVehicle.id())
+                .header("Authorization", token)
+                .exchange()
+                .expectStatus().isNoContent();
+
+        webTestClient.post()
+                .uri("/veiculos")
+                .header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(validRequest())
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody()
+                .jsonPath("$.placa").isEqualTo("ABC1234");
     }
 
     private String bearerTokenFor(UserRole role) {

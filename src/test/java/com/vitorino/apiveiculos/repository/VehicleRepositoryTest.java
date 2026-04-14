@@ -21,7 +21,7 @@ class VehicleRepositoryTest {
     private VehicleRepository repository;
 
     @Nested
-    @DisplayName("existsByLicensePlate()")
+    @DisplayName("existsByLicensePlateAndDeletedFalse()")
     class ExistsByLicensePlate {
         @Test
         @DisplayName("Deve retornar true quando a placa já existe")
@@ -36,7 +36,7 @@ class VehicleRepositoryTest {
 
             repository.save(vehicle);
 
-            boolean exists = repository.existsByLicensePlate("ABC1234");
+            boolean exists = repository.existsByLicensePlateAndDeletedFalse("ABC1234");
 
             assertTrue(exists);
         }
@@ -44,7 +44,7 @@ class VehicleRepositoryTest {
         @Test
         @DisplayName("Deve retornar false quando a placa não existe")
         void shouldReturnFalseWhenLicensePlateDoesNotExist() {
-            boolean exists = repository.existsByLicensePlate("XYZ9999");
+            boolean exists = repository.existsByLicensePlateAndDeletedFalse("XYZ9999");
 
             assertFalse(exists);
         }
@@ -62,14 +62,33 @@ class VehicleRepositoryTest {
 
             repository.save(vehicle);
 
-            boolean exists = repository.existsByLicensePlate("DIFFERENT");
+            boolean exists = repository.existsByLicensePlateAndDeletedFalse("DIFFERENT");
+
+            assertFalse(exists);
+        }
+
+        @Test
+        @DisplayName("Deve ignorar placa de veiculo deletado")
+        void shouldIgnoreDeletedVehicleLicensePlate() {
+            Vehicle vehicle = new Vehicle();
+            vehicle.setLicensePlate("ABC1234");
+            vehicle.setBrand("Volkswagen");
+            vehicle.setModel("Fox");
+            vehicle.setVehicleYear(2008);
+            vehicle.setColor("Prata");
+            vehicle.setPrice(new BigDecimal("5000.00"));
+            vehicle.setDeleted(true);
+
+            repository.save(vehicle);
+
+            boolean exists = repository.existsByLicensePlateAndDeletedFalse("ABC1234");
 
             assertFalse(exists);
         }
     }
 
     @Nested
-    @DisplayName("ExistsByLicensePlateAndIdNot()")
+    @DisplayName("ExistsByLicensePlateAndIdNotAndDeletedFalse()")
     class ExistsByLicensePlateAndIdNot {
         @Test
         @DisplayName("Deve retornar true quando a placa existe em outro veículo")
@@ -86,7 +105,7 @@ class VehicleRepositoryTest {
 
             UUID otherId = UUID.randomUUID();
 
-            boolean exists = repository.existsByLicensePlateAndIdNot("ABC1234", otherId);
+            boolean exists = repository.existsByLicensePlateAndIdNotAndDeletedFalse("ABC1234", otherId);
 
             assertTrue(exists);
             assertNotEquals(saved.getId(), otherId);
@@ -105,7 +124,7 @@ class VehicleRepositoryTest {
 
             Vehicle saved = repository.save(vehicle);
 
-            boolean exists = repository.existsByLicensePlateAndIdNot("ABC1234", saved.getId());
+            boolean exists = repository.existsByLicensePlateAndIdNotAndDeletedFalse("ABC1234", saved.getId());
 
             assertFalse(exists);
         }
@@ -113,9 +132,30 @@ class VehicleRepositoryTest {
         @Test
         @DisplayName("Deve retornar false quando a placa não existe")
         void shouldReturnFalseWhenLicensePlateDoesNotExistForDifferentId() {
-            boolean exists = repository.existsByLicensePlateAndIdNot("ZZZ9999", UUID.randomUUID());
+            boolean exists = repository.existsByLicensePlateAndIdNotAndDeletedFalse("ZZZ9999", UUID.randomUUID());
 
             assertFalse(exists);
+        }
+
+        @Test
+        @DisplayName("Deve ignorar placa de outro veiculo deletado")
+        void shouldIgnoreDeletedVehicleForDifferentIdCheck() {
+            Vehicle vehicle = new Vehicle();
+            vehicle.setLicensePlate("ABC1234");
+            vehicle.setBrand("Volkswagen");
+            vehicle.setModel("Fox");
+            vehicle.setVehicleYear(2008);
+            vehicle.setColor("Prata");
+            vehicle.setPrice(new BigDecimal("5000.00"));
+            vehicle.setDeleted(true);
+
+            Vehicle saved = repository.save(vehicle);
+            UUID otherId = UUID.randomUUID();
+
+            boolean exists = repository.existsByLicensePlateAndIdNotAndDeletedFalse("ABC1234", otherId);
+
+            assertFalse(exists);
+            assertNotEquals(saved.getId(), otherId);
         }
     }
 

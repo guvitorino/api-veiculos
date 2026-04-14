@@ -37,7 +37,7 @@ public class VehicleService {
     public VehicleResponsetDTO save(VehicleRequestDTO dto) {
         Vehicle entity = mapper.toEntity(dto);
 
-        if (repository.existsByLicensePlate(entity.getLicensePlate())) {
+        if (repository.existsByLicensePlateAndDeletedFalse(entity.getLicensePlate())) {
             throw new LicensePlateAlreadyExistsException(dto.placa());
         }
         BigDecimal priceInUsd = currencyService.convertBrlToUsd(dto.preco());
@@ -47,10 +47,10 @@ public class VehicleService {
     }
 
     public VehicleResponsetDTO update(UUID id, VehicleRequestDTO dto) {
-        Vehicle vehicle = repository.findById(id)
+        Vehicle vehicle = repository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new VehicleNotFoundException(id));
 
-        if (repository.existsByLicensePlateAndIdNot(dto.placa(), id)) {
+        if (repository.existsByLicensePlateAndIdNotAndDeletedFalse(dto.placa(), id)) {
             throw new LicensePlateAlreadyExistsException(dto.placa());
         }
 
@@ -68,11 +68,11 @@ public class VehicleService {
     }
 
     public VehicleResponsetDTO patch(UUID id, VehiclePatchRequestDTO dto) {
-        Vehicle vehicle = repository.findById(id)
+        Vehicle vehicle = repository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new VehicleNotFoundException(id));
 
         if (dto.placa() != null) {
-            if (repository.existsByLicensePlateAndIdNot(dto.placa(), id)) {
+            if (repository.existsByLicensePlateAndIdNotAndDeletedFalse(dto.placa(), id)) {
                 throw new LicensePlateAlreadyExistsException(dto.placa());
             }
             vehicle.setLicensePlate(dto.placa());
@@ -109,6 +109,7 @@ public class VehicleService {
                 .orElseThrow(() -> new VehicleNotFoundException(id));
 
         vehicle.setDeleted(true);
+        vehicle.setLicensePlate(buildDeletedLicensePlate(vehicle));
         repository.save(vehicle);
     }
 
@@ -183,5 +184,9 @@ public class VehicleService {
 
     public List<VehicleByBrandReportDTO> getVehicleReportByBrand() {
         return repository.countVehiclesGroupedByBrand();
+    }
+
+    private String buildDeletedLicensePlate(Vehicle vehicle) {
+        return vehicle.getLicensePlate() + "#DELETED#" + vehicle.getId();
     }
 }

@@ -11,8 +11,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface VehicleRepository extends JpaRepository<Vehicle, UUID>, JpaSpecificationExecutor<Vehicle> {
-    boolean existsByLicensePlate(String licensePlate);
-    boolean existsByLicensePlateAndIdNot(String licensePlate, UUID id);
+    boolean existsByLicensePlateAndDeletedFalse(String licensePlate);
+    boolean existsByLicensePlateAndIdNotAndDeletedFalse(String licensePlate, UUID id);
     Optional<Vehicle> findByIdAndDeletedFalse(UUID id);
 
     @Query("""

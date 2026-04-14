@@ -85,7 +85,7 @@ class VehicleServiceTest {
             );
 
             when(mapper.toEntity(requestDTO)).thenReturn(entity);
-            when(repository.existsByLicensePlate("ABC1234")).thenReturn(false);
+            when(repository.existsByLicensePlateAndDeletedFalse("ABC1234")).thenReturn(false);
             when(currencyService.convertBrlToUsd(new BigDecimal("25000.00")))
                     .thenReturn(new BigDecimal("5000.00"));
             when(repository.save(entity)).thenReturn(savedEntity);
@@ -99,7 +99,7 @@ class VehicleServiceTest {
             assertEquals(new BigDecimal("5000.00"), result.preco());
 
             verify(mapper).toEntity(requestDTO);
-            verify(repository).existsByLicensePlate("ABC1234");
+            verify(repository).existsByLicensePlateAndDeletedFalse("ABC1234");
             verify(currencyService).convertBrlToUsd(new BigDecimal("25000.00"));
             verify(repository).save(entity);
             verify(mapper).toResponseDTO(savedEntity);
@@ -135,7 +135,7 @@ class VehicleServiceTest {
             );
 
             when(mapper.toEntity(requestDTO)).thenReturn(entity);
-            when(repository.existsByLicensePlate("ABC1234")).thenReturn(false);
+            when(repository.existsByLicensePlateAndDeletedFalse("ABC1234")).thenReturn(false);
             when(currencyService.convertBrlToUsd(new BigDecimal("25000.00")))
                     .thenReturn(new BigDecimal("5000.00"));
             when(repository.save(any(Vehicle.class))).thenReturn(savedEntity);
@@ -165,7 +165,7 @@ class VehicleServiceTest {
             entity.setLicensePlate("ABC1234");
 
             when(mapper.toEntity(requestDTO)).thenReturn(entity);
-            when(repository.existsByLicensePlate("ABC1234")).thenReturn(true);
+            when(repository.existsByLicensePlateAndDeletedFalse("ABC1234")).thenReturn(true);
 
             LicensePlateAlreadyExistsException exception = assertThrows(
                     LicensePlateAlreadyExistsException.class,
@@ -175,10 +175,53 @@ class VehicleServiceTest {
             assertTrue(exception.getMessage().contains("ABC1234"));
 
             verify(mapper).toEntity(requestDTO);
-            verify(repository).existsByLicensePlate("ABC1234");
+            verify(repository).existsByLicensePlateAndDeletedFalse("ABC1234");
             verify(currencyService, never()).convertBrlToUsd(any());
             verify(repository, never()).save(any());
             verify(mapper, never()).toResponseDTO(any());
+        }
+
+        @Test
+        void shouldIgnoreDeletedVehicleWhenCheckingDuplicateLicensePlate() {
+            VehicleRequestDTO requestDTO = new VehicleRequestDTO(
+                    "ABC1234",
+                    "Volkswagen",
+                    "Fox",
+                    2008,
+                    "Prata",
+                    new BigDecimal("25000.00")
+            );
+
+            Vehicle entity = new Vehicle();
+            entity.setLicensePlate("ABC1234");
+
+            Vehicle savedEntity = new Vehicle();
+            savedEntity.setId(id);
+            savedEntity.setLicensePlate("ABC1234");
+            savedEntity.setPrice(new BigDecimal("5000.00"));
+
+            VehicleResponsetDTO responseDTO = new VehicleResponsetDTO(
+                    id,
+                    "ABC1234",
+                    "Volkswagen",
+                    "Fox",
+                    2008,
+                    "Prata",
+                    new BigDecimal("5000.00")
+            );
+
+            when(mapper.toEntity(requestDTO)).thenReturn(entity);
+            when(repository.existsByLicensePlateAndDeletedFalse("ABC1234")).thenReturn(false);
+            when(currencyService.convertBrlToUsd(new BigDecimal("25000.00")))
+                    .thenReturn(new BigDecimal("5000.00"));
+            when(repository.save(entity)).thenReturn(savedEntity);
+            when(mapper.toResponseDTO(savedEntity)).thenReturn(responseDTO);
+
+            VehicleResponsetDTO result = service.save(requestDTO);
+
+            assertNotNull(result);
+            verify(repository).existsByLicensePlateAndDeletedFalse("ABC1234");
+            verify(repository).save(entity);
         }
     }
 
@@ -227,8 +270,8 @@ class VehicleServiceTest {
                     new BigDecimal("20000.00")
             );
 
-            when(repository.findById(id)).thenReturn(Optional.of(vehicle));
-            when(repository.existsByLicensePlateAndIdNot(dto.placa(), id)).thenReturn(false);
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.of(vehicle));
+            when(repository.existsByLicensePlateAndIdNotAndDeletedFalse(dto.placa(), id)).thenReturn(false);
             when(currencyService.convertBrlToUsd(dto.preco())).thenReturn(new BigDecimal("20000.00"));
             when(repository.save(vehicle)).thenReturn(savedVehicle);
             when(mapper.toResponseDTO(savedVehicle)).thenReturn(responseDTO);
@@ -245,8 +288,8 @@ class VehicleServiceTest {
             assertEquals(dto.cor(), vehicle.getColor());
             assertEquals(new BigDecimal("20000.00"), vehicle.getPrice());
 
-            verify(repository).findById(id);
-            verify(repository).existsByLicensePlateAndIdNot(dto.placa(), id);
+            verify(repository).findByIdAndDeletedFalse(id);
+            verify(repository).existsByLicensePlateAndIdNotAndDeletedFalse(dto.placa(), id);
             verify(currencyService).convertBrlToUsd(dto.preco());
             verify(repository).save(vehicle);
             verify(mapper).toResponseDTO(savedVehicle);
@@ -265,15 +308,34 @@ class VehicleServiceTest {
                     new BigDecimal("100000.00")
             );
 
-            when(repository.findById(id)).thenReturn(Optional.empty());
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.empty());
 
             assertThrows(VehicleNotFoundException.class, () -> service.update(id, dto));
 
-            verify(repository).findById(id);
-            verify(repository, never()).existsByLicensePlateAndIdNot(anyString(), any(UUID.class));
+            verify(repository).findByIdAndDeletedFalse(id);
+            verify(repository, never()).existsByLicensePlateAndIdNotAndDeletedFalse(anyString(), any(UUID.class));
             verify(currencyService, never()).convertBrlToUsd(any());
             verify(repository, never()).save(any());
             verify(mapper, never()).toResponseDTO(any());
+        }
+
+        @Test
+        void shouldThrowVehicleNotFoundExceptionWhenVehicleIsDeleted() {
+            VehicleRequestDTO dto = new VehicleRequestDTO(
+                    "ABC1D23",
+                    "Toyota",
+                    "Corolla",
+                    2024,
+                    "Preto",
+                    new BigDecimal("100000.00")
+            );
+
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.empty());
+
+            assertThrows(VehicleNotFoundException.class, () -> service.update(id, dto));
+
+            verify(repository).findByIdAndDeletedFalse(id);
+            verify(repository, never()).existsByLicensePlateAndIdNotAndDeletedFalse(anyString(), any(UUID.class));
         }
 
         @Test
@@ -292,13 +354,13 @@ class VehicleServiceTest {
             Vehicle vehicle = new Vehicle();
             vehicle.setId(id);
 
-            when(repository.findById(id)).thenReturn(Optional.of(vehicle));
-            when(repository.existsByLicensePlateAndIdNot(dto.placa(), id)).thenReturn(true);
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.of(vehicle));
+            when(repository.existsByLicensePlateAndIdNotAndDeletedFalse(dto.placa(), id)).thenReturn(true);
 
             assertThrows(LicensePlateAlreadyExistsException.class, () -> service.update(id, dto));
 
-            verify(repository).findById(id);
-            verify(repository).existsByLicensePlateAndIdNot(dto.placa(), id);
+            verify(repository).findByIdAndDeletedFalse(id);
+            verify(repository).existsByLicensePlateAndIdNotAndDeletedFalse(dto.placa(), id);
             verify(currencyService, never()).convertBrlToUsd(any());
             verify(repository, never()).save(any());
             verify(mapper, never()).toResponseDTO(any());
@@ -342,7 +404,7 @@ class VehicleServiceTest {
                     new BigDecimal("5000.00")
             );
 
-            when(repository.findById(id)).thenReturn(Optional.of(existingVehicle));
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.of(existingVehicle));
             when(repository.save(existingVehicle)).thenReturn(existingVehicle);
             when(mapper.toResponseDTO(existingVehicle)).thenReturn(responseDTO);
 
@@ -356,11 +418,11 @@ class VehicleServiceTest {
             assertEquals(2008, existingVehicle.getVehicleYear());
             assertEquals(new BigDecimal("5000.00"), existingVehicle.getPrice());
 
-            verify(repository).findById(id);
+            verify(repository).findByIdAndDeletedFalse(id);
             verify(repository).save(existingVehicle);
             verify(mapper).toResponseDTO(existingVehicle);
             verify(currencyService, never()).convertBrlToUsd(any());
-            verify(repository, never()).existsByLicensePlateAndIdNot(any(), any());
+            verify(repository, never()).existsByLicensePlateAndIdNotAndDeletedFalse(any(), any());
         }
 
         @Test
@@ -386,7 +448,7 @@ class VehicleServiceTest {
                     new BigDecimal("30000.00")
             );
 
-            when(repository.findById(id)).thenReturn(Optional.of(existingVehicle));
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.of(existingVehicle));
             when(currencyService.convertBrlToUsd(new BigDecimal("30000.00")))
                     .thenReturn(new BigDecimal("6000.00"));
             when(repository.save(existingVehicle)).thenReturn(existingVehicle);
@@ -427,13 +489,13 @@ class VehicleServiceTest {
                     null
             );
 
-            when(repository.findById(id)).thenReturn(Optional.of(existingVehicle));
-            when(repository.existsByLicensePlateAndIdNot("XYZ9999", id)).thenReturn(true);
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.of(existingVehicle));
+            when(repository.existsByLicensePlateAndIdNotAndDeletedFalse("XYZ9999", id)).thenReturn(true);
 
             assertThrows(LicensePlateAlreadyExistsException.class, () -> service.patch(id, patchDTO));
 
-            verify(repository).findById(id);
-            verify(repository).existsByLicensePlateAndIdNot("XYZ9999", id);
+            verify(repository).findByIdAndDeletedFalse(id);
+            verify(repository).existsByLicensePlateAndIdNotAndDeletedFalse("XYZ9999", id);
             verify(repository, never()).save(any());
             verify(currencyService, never()).convertBrlToUsd(any());
             verify(mapper, never()).toResponseDTO(any());
@@ -462,7 +524,7 @@ class VehicleServiceTest {
                     null
             );
 
-            when(repository.findById(id)).thenReturn(Optional.of(existingVehicle));
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.of(existingVehicle));
             when(repository.save(existingVehicle)).thenReturn(existingVehicle);
             when(mapper.toResponseDTO(existingVehicle)).thenReturn(
                     new VehicleResponsetDTO(
@@ -478,7 +540,7 @@ class VehicleServiceTest {
 
             service.patch(id, patchDTO);
 
-            verify(repository, never()).existsByLicensePlateAndIdNot(any(), any());
+            verify(repository, never()).existsByLicensePlateAndIdNotAndDeletedFalse(any(), any());
             verify(repository).save(existingVehicle);
         }
 
@@ -496,15 +558,35 @@ class VehicleServiceTest {
                     null
             );
 
-            when(repository.findById(id)).thenReturn(Optional.empty());
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.empty());
 
             assertThrows(VehicleNotFoundException.class, () -> service.patch(id, patchDTO));
 
-            verify(repository).findById(id);
+            verify(repository).findByIdAndDeletedFalse(id);
             verify(repository, never()).save(any());
-            verify(repository, never()).existsByLicensePlateAndIdNot(any(), any());
+            verify(repository, never()).existsByLicensePlateAndIdNotAndDeletedFalse(any(), any());
             verify(currencyService, never()).convertBrlToUsd(any());
             verify(mapper, never()).toResponseDTO(any());
+        }
+
+        @Test
+        @DisplayName("Deve lançar exceção quando veículo estiver deletado")
+        void shouldThrowExceptionWhenVehicleIsDeleted() {
+            VehiclePatchRequestDTO patchDTO = new VehiclePatchRequestDTO(
+                    null,
+                    "Fiat",
+                    null,
+                    null,
+                    null,
+                    null
+            );
+
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.empty());
+
+            assertThrows(VehicleNotFoundException.class, () -> service.patch(id, patchDTO));
+
+            verify(repository).findByIdAndDeletedFalse(id);
+            verify(repository, never()).save(any());
         }
 
         @Test
@@ -530,8 +612,8 @@ class VehicleServiceTest {
                     new BigDecimal("35000.00")
             );
 
-            when(repository.findById(id)).thenReturn(Optional.of(existingVehicle));
-            when(repository.existsByLicensePlateAndIdNot("XYZ9999", id)).thenReturn(false);
+            when(repository.findByIdAndDeletedFalse(id)).thenReturn(Optional.of(existingVehicle));
+            when(repository.existsByLicensePlateAndIdNotAndDeletedFalse("XYZ9999", id)).thenReturn(false);
             when(currencyService.convertBrlToUsd(new BigDecimal("35000.00")))
                     .thenReturn(new BigDecimal("7000.00"));
             when(repository.save(any(Vehicle.class))).thenReturn(existingVehicle);
@@ -588,6 +670,8 @@ class VehicleServiceTest {
             service.delete(id);
 
             assertTrue(vehicle.getDeleted());
+            assertTrue(vehicle.getLicensePlate().startsWith("ABC1234#DELETED#"));
+            assertTrue(vehicle.getLicensePlate().contains(id.toString()));
 
             verify(repository).findByIdAndDeletedFalse(id);
             verify(repository).save(vehicle);
