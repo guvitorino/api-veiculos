@@ -1,6 +1,7 @@
 package com.vitorino.apiveiculos.controller;
 
 import com.vitorino.apiveiculos.dto.LoginResponseDTO;
+import com.vitorino.apiveiculos.dto.VehicleByBrandReportDTO;
 import com.vitorino.apiveiculos.dto.VehicleResponsetDTO;
 import com.vitorino.apiveiculos.model.User;
 import com.vitorino.apiveiculos.model.UserRole;
@@ -229,6 +230,232 @@ class VehicleControllerIntegrationTest {
                 .jsonPath("$.placa").isEqualTo("ABC1234");
     }
 
+    @Test
+    @DisplayName("Deve atualizar veículo com sucesso quando usuário for admin")
+    void shouldUpdateVehicleSuccessfullyWhenUserIsAdmin() {
+        String token = bearerTokenFor(UserRole.ADMIN);
+        Vehicle vehicle = vehicleRepository.save(existingVehicle("ABC1234"));
+
+        webTestClient.put()
+                .uri("/veiculos/{id}", vehicle.getId())
+                .header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of(
+                        "placa", "XYZ9999",
+                        "marca", "Toyota",
+                        "modelo", "Corolla",
+                        "ano", 2022,
+                        "cor", "Preto",
+                        "preco", new BigDecimal("100000.00")
+                ))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.id").isEqualTo(vehicle.getId().toString())
+                .jsonPath("$.placa").isEqualTo("XYZ9999")
+                .jsonPath("$.marca").isEqualTo("Toyota")
+                .jsonPath("$.modelo").isEqualTo("Corolla")
+                .jsonPath("$.ano").isEqualTo(2022)
+                .jsonPath("$.cor").isEqualTo("Preto")
+                .jsonPath("$.preco").isEqualTo(5000.00);
+    }
+
+    @Test
+    @DisplayName("Deve retornar 403 ao atualizar veículo quando usuário não for admin")
+    void shouldReturnForbiddenWhenUserDoesNotHaveAdminRoleForUpdate() {
+        String token = bearerTokenFor(UserRole.USER);
+        Vehicle vehicle = vehicleRepository.save(existingVehicle("ABC1234"));
+
+        webTestClient.put()
+                .uri("/veiculos/{id}", vehicle.getId())
+                .header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(validRequest())
+                .exchange()
+                .expectStatus().isForbidden()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("Forbidden")
+                .jsonPath("$.status").isEqualTo(403)
+                .jsonPath("$.timestamp").exists();
+    }
+
+    @Test
+    @DisplayName("Deve retornar 404 ao atualizar veículo inexistente")
+    void shouldReturnNotFoundWhenUpdatingUnknownVehicle() {
+        String token = bearerTokenFor(UserRole.ADMIN);
+        UUID unknownId = UUID.randomUUID();
+
+        webTestClient.put()
+                .uri("/veiculos/{id}", unknownId)
+                .header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(validRequest())
+                .exchange()
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("Veículo não encontrado com id: " + unknownId)
+                .jsonPath("$.status").isEqualTo(404)
+                .jsonPath("$.timestamp").exists();
+    }
+
+    @Test
+    @DisplayName("Deve retornar 409 ao atualizar veículo com placa já cadastrada")
+    void shouldReturnConflictWhenUpdatingVehicleWithExistingLicensePlate() {
+        String token = bearerTokenFor(UserRole.ADMIN);
+        Vehicle vehicle = vehicleRepository.save(existingVehicle("ABC1234"));
+        vehicleRepository.save(existingVehicle("XYZ9999"));
+
+        webTestClient.put()
+                .uri("/veiculos/{id}", vehicle.getId())
+                .header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of(
+                        "placa", "XYZ9999",
+                        "marca", "Toyota",
+                        "modelo", "Corolla",
+                        "ano", 2022,
+                        "cor", "Preto",
+                        "preco", new BigDecimal("100000.00")
+                ))
+                .exchange()
+                .expectStatus().isEqualTo(409)
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("Placa já cadastrada: XYZ9999")
+                .jsonPath("$.status").isEqualTo(409)
+                .jsonPath("$.timestamp").exists();
+    }
+
+    @Test
+    @DisplayName("Deve atualizar parcialmente veículo com sucesso quando usuário for admin")
+    void shouldPatchVehicleSuccessfullyWhenUserIsAdmin() {
+        String token = bearerTokenFor(UserRole.ADMIN);
+        Vehicle vehicle = vehicleRepository.save(existingVehicle("ABC1234"));
+
+        webTestClient.patch()
+                .uri("/veiculos/{id}", vehicle.getId())
+                .header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of(
+                        "cor", "Azul",
+                        "preco", new BigDecimal("80000.00")
+                ))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.id").isEqualTo(vehicle.getId().toString())
+                .jsonPath("$.placa").isEqualTo("ABC1234")
+                .jsonPath("$.cor").isEqualTo("Azul")
+                .jsonPath("$.preco").isEqualTo(5000.00);
+    }
+
+    @Test
+    @DisplayName("Deve retornar 409 ao atualizar parcialmente veículo com placa já cadastrada")
+    void shouldReturnConflictWhenPatchingVehicleWithExistingLicensePlate() {
+        String token = bearerTokenFor(UserRole.ADMIN);
+        Vehicle vehicle = vehicleRepository.save(existingVehicle("ABC1234"));
+        vehicleRepository.save(existingVehicle("XYZ9999"));
+
+        webTestClient.patch()
+                .uri("/veiculos/{id}", vehicle.getId())
+                .header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of("placa", "XYZ9999"))
+                .exchange()
+                .expectStatus().isEqualTo(409)
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("Placa já cadastrada: XYZ9999")
+                .jsonPath("$.status").isEqualTo(409)
+                .jsonPath("$.timestamp").exists();
+    }
+
+    @Test
+    @DisplayName("Deve retornar 404 ao buscar veículo inexistente")
+    void shouldReturnNotFoundWhenVehicleDoesNotExist() {
+        String token = bearerTokenFor(UserRole.USER);
+        UUID unknownId = UUID.randomUUID();
+
+        webTestClient.get()
+                .uri("/veiculos/{id}", unknownId)
+                .header("Authorization", token)
+                .exchange()
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("Veículo não encontrado com id: " + unknownId)
+                .jsonPath("$.status").isEqualTo(404)
+                .jsonPath("$.timestamp").exists();
+    }
+
+    @Test
+    @DisplayName("Deve deletar veículo com sucesso quando usuário for admin")
+    void shouldDeleteVehicleSuccessfullyWhenUserIsAdmin() {
+        String token = bearerTokenFor(UserRole.ADMIN);
+        Vehicle vehicle = vehicleRepository.save(existingVehicle("ABC1234"));
+
+        webTestClient.delete()
+                .uri("/veiculos/{id}", vehicle.getId())
+                .header("Authorization", token)
+                .exchange()
+                .expectStatus().isNoContent();
+
+        webTestClient.get()
+                .uri("/veiculos/{id}", vehicle.getId())
+                .header("Authorization", token)
+                .exchange()
+                .expectStatus().isNotFound();
+    }
+
+    @Test
+    @DisplayName("Deve retornar 403 ao deletar veículo quando usuário não for admin")
+    void shouldReturnForbiddenWhenUserDoesNotHaveAdminRoleForDelete() {
+        String token = bearerTokenFor(UserRole.USER);
+        Vehicle vehicle = vehicleRepository.save(existingVehicle("ABC1234"));
+
+        webTestClient.delete()
+                .uri("/veiculos/{id}", vehicle.getId())
+                .header("Authorization", token)
+                .exchange()
+                .expectStatus().isForbidden()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("Forbidden")
+                .jsonPath("$.status").isEqualTo(403)
+                .jsonPath("$.timestamp").exists();
+    }
+
+    @Test
+    @DisplayName("Deve retornar 404 ao deletar veículo inexistente")
+    void shouldReturnNotFoundWhenDeletingUnknownVehicle() {
+        String token = bearerTokenFor(UserRole.ADMIN);
+        UUID unknownId = UUID.randomUUID();
+
+        webTestClient.delete()
+                .uri("/veiculos/{id}", unknownId)
+                .header("Authorization", token)
+                .exchange()
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("Veículo não encontrado com id: " + unknownId)
+                .jsonPath("$.status").isEqualTo(404)
+                .jsonPath("$.timestamp").exists();
+    }
+
+    @Test
+    @DisplayName("Deve retornar relatório por marca para usuário autenticado")
+    void shouldReturnVehicleReportByBrandForAuthenticatedUser() {
+        String token = bearerTokenFor(UserRole.USER);
+        vehicleRepository.save(existingVehicle("ABC1234"));
+        vehicleRepository.save(existingVehicle("XYZ9999"));
+        vehicleRepository.save(vehicle("AAA1111", "Toyota", "Corolla", 2020, "Preto", new BigDecimal("20000.00"), false));
+
+        webTestClient.get()
+                .uri("/veiculos/relatorios/por-marca")
+                .header("Authorization", token)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(VehicleByBrandReportDTO.class)
+                .hasSize(2)
+                .contains(new VehicleByBrandReportDTO("Fiat", 2L), new VehicleByBrandReportDTO("Toyota", 1L));
+    }
+
     private String bearerTokenFor(UserRole role) {
         String password = "123456";
         User user = userRepository.save(User.builder()
@@ -258,14 +485,26 @@ class VehicleControllerIntegrationTest {
     }
 
     private Vehicle existingVehicle(String licensePlate) {
+        return vehicle(licensePlate, "Fiat", "Uno", 2018, "Branco", new BigDecimal("3500.00"), false);
+    }
+
+    private Vehicle vehicle(
+            String licensePlate,
+            String brand,
+            String model,
+            Integer year,
+            String color,
+            BigDecimal price,
+            boolean deleted
+    ) {
         Vehicle vehicle = new Vehicle();
         vehicle.setLicensePlate(licensePlate);
-        vehicle.setBrand("Fiat");
-        vehicle.setModel("Uno");
-        vehicle.setVehicleYear(2018);
-        vehicle.setColor("Branco");
-        vehicle.setPrice(new BigDecimal("3500.00"));
-        vehicle.setDeleted(false);
+        vehicle.setBrand(brand);
+        vehicle.setModel(model);
+        vehicle.setVehicleYear(year);
+        vehicle.setColor(color);
+        vehicle.setPrice(price);
+        vehicle.setDeleted(deleted);
         return vehicle;
     }
 
